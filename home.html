@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Data</title>
+    <link rel="stylesheet" href="devicestyle.css">
+    <style>
+        /* Additional CSS for the combined layout */
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            margin-top: 20px;
+        }
+
+        .card {
+            width: calc(50% - 20px);
+            margin-bottom: 20px;
+        }
+
+        .map-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .map {
+            width: 100%;
+            max-width: 600px; /* Limit maximum width of map */
+            height: 300px;
+        }
+
+        .embed-responsive {
+            position: relative;
+            height: 0;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+        }
+
+        .embed-responsive iframe {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 1px solid #cccccc;
+        }
+
+        .card-content {
+            height: 100%; /* Ensure content fills the card height */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-details {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .map-type-buttons {
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .map-type-buttons button {
+            margin-right: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Device Data</h1>
+    </header>
+    <main>
+        <div class="container">
+            <!-- Device 1 Cards -->
+            <div class="card">
+                <div class="card-content">
+                    <h2 class="card-title">Device 1 - Temperature</h2>
+                    <div class="embed-responsive">
+                        <iframe src="https://thingspeak.com/channels/2573701/widgets/879072"></iframe>
+                    </div>
+                    <div class="card-details">
+                        <h3>Last Updated</h3>
+                        <p id="temperatureTimestamp1">Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-content">
+                    <h2 class="card-title">Device 1 - Status of Movement</h2>
+                    <div class="embed-responsive">
+                        <iframe src="https://thingspeak.com/channels/2573701/widgets/879073"></iframe>
+                    </div>
+                    <div class="card-details">
+                        <h3>Last Updated</h3>
+                        <p id="movementTimestamp1">Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Device 1 Map -->
+            <div class="map-container">
+                <div class="map" id="map1"></div>
+            </div>
+
+            <!-- Device 2 Cards -->
+            <div class="card">
+                <div class="card-content">
+                    <h2 class="card-title">Device 2 - Temperature</h2>
+                    <div class="embed-responsive">
+                        <iframe src="https://thingspeak.com/channels/2581068/widgets/884190"></iframe>
+                    </div>
+                    <div class="card-details">
+                        <h3>Last Updated</h3>
+                        <p id="temperatureTimestamp2">Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-content">
+                    <h2 class="card-title">Device 2 - Status of Movement</h2>
+                    <div class="embed-responsive">
+                        <iframe src="https://thingspeak.com/channels/2581068/widgets/884191"></iframe>
+                    </div>
+                    <div class="card-details">
+                        <h3>Last Updated</h3>
+                        <p id="movementTimestamp2">Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Device 2 Map -->
+            <div class="map-container">
+                <div class="map" id="map2"></div>
+            </div>
+        </div>
+
+        <!-- Map Type Buttons -->
+        <div class="map-type-buttons">
+            <button onclick="setMapType('terrain')">Terrain View</button>
+            <button onclick="setMapType('satellite')">Satellite View</button>
+        </div>
+    </main>
+    
+    <a href="home.html" class="back-link">Back to Home</a>
+    <script src="scripts.js"></script>
+    <script>
+        var map1, map2;
+        var currentMapType = 'satellite'; // Default map type
+
+        function initMap() {
+            // Define map options for both maps
+            var mapOptions = {
+                center: { lat: 0, lng: 0 }, // Initial center coordinates
+                zoom: 2, // Initial zoom level
+                mapTypeId: google.maps.MapTypeId[currentMapType.toUpperCase()] // Set initial map type
+            };
+
+            // Initialize map for Device 1 with defined options
+            map1 = new google.maps.Map(document.getElementById('map1'), mapOptions);
+
+            // Initialize map for Device 2 with defined options
+            map2 = new google.maps.Map(document.getElementById('map2'), mapOptions);
+
+            // Fetch and display data for both devices
+            fetchDataAndDisplay(1);
+            fetchDataAndDisplay(2);
+        }
+
+        // Function to set map type (terrain or satellite)
+        function setMapType(type) {
+            map1.setMapTypeId(google.maps.MapTypeId[type.toUpperCase()]);
+            map2.setMapTypeId(google.maps.MapTypeId[type.toUpperCase()]);
+            currentMapType = type;
+        }
+
+        // Function to add a marker to the map at specified coordinates
+        function addMarker(map, latitude, longitude) {
+            var marker = new google.maps.Marker({
+                position: { lat: latitude, lng: longitude },
+                map: map,
+                title: 'Device Location'
+            });
+        }
+
+        // Function to fetch data from ThingSpeak and display markers on the map for a specific device
+        function fetchDataAndDisplay(deviceId) {
+            var channel;
+            var map;
+
+            if (deviceId === 1) {
+                channel = '2573701';
+                map = map1;
+            } else if (deviceId === 2) {
+                channel = '2581068';
+                map = map2;
+            }
+
+            fetch('https://api.thingspeak.com/channels/' + channel + '/feeds.json?results=1')
+                .then(response => response.json())
+                .then(data => {
+                    const feeds = data.feeds;
+                    if (feeds.length > 0) {
+                        const lastFeed = feeds[0];
+                        const latitude = parseFloat(lastFeed.field3);
+                        const longitude = parseFloat(lastFeed.field4);
+
+                        if (!isNaN(latitude) && !isNaN(longitude)) {
+                            map.setCenter({ lat: latitude, lng: longitude });
+                            addMarker(map, latitude, longitude);
+
+                            // Update timestamp display
+                            const timestampUTC = new Date(lastFeed.created_at);
+                            const timestampIST = timestampUTC.toLocaleString('en-IN', {
+                                timeZone: 'Asia/Kolkata'
+                            });
+                            document.getElementById('temperatureTimestamp' + deviceId).textContent = "Last Updated: " + timestampIST;
+                            document.getElementById('movementTimestamp' + deviceId).textContent = "Last Updated: " + timestampIST;
+                        } else {
+                            console.log('Invalid location data');
+                        }
+                    } else {
+                        console.log('No data available');
+                    }
+                })
+                .catch(error => console.error('Error fetching data from ThingSpeak:', error));
+        }
+
+        // Set interval to periodically fetch and update data
+        function startPeriodicUpdate(interval) {
+            fetchDataAndDisplay(1);
+            fetchDataAndDisplay(2);
+            setInterval(() => {
+                fetchDataAndDisplay(1);
+                fetchDataAndDisplay(2);
+            }, interval);
+        }
+
+        // Initialize the map and start periodic update
+        initMap();
+        startPeriodicUpdate(30000); // Update every 30 seconds
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBAB5i6zlA1-nnWWtgTLQn9URcL1fzXkKc&callback=initMap"></script>
+</body>
+</html>
